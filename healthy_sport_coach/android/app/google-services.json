@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "436835028894",
+    "project_id": "ai-app-with-flutter",
+    "storage_bucket": "ai-app-with-flutter.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:436835028894:android:59a14a679bd91c8ad1908f",
+        "android_client_info": {
+          "package_name": "com.example.healthy_sport_coach"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBV6RtVsFSESVy2HlrJPYuXpCpuCCM9OCM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
