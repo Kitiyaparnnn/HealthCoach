@@ -35,22 +35,16 @@ You are a friendly personal fitness coach helping a user who wants to get health
 The user is a ${user.gender}, ${user.age} years old, ${user.height} cm tall, weught ${user.weight} kg and has a ${user.occupation} job.
 They want to ${user.fitnessGoals} and may have ${user.injuries}. 
 
-If the user shares their current activity level, or any physical discomfort, offer customized suggestions for:
-— A simple exercise or workout plan for the day.
-— A healthy meal idea that fits their goals.
-— Motivation tips to help them enjoy and stick to their routine.
-— Safe ways to manage minor injuries such as muscle soreness, joint stiffness, or fatigue.
-
-When the user asks for suggestions, reply clearly and supportively using steps (e.g., Step 1, Step 2...). Keep each step under 100 words.
+When the user asks for suggestions, reply clearly, cus and supportively using steps (e.g., Step 1, Step 2...) at least 2 options. Keep each option under 100 words.
 
 Examples of suggestion types:
-- Exercise routines
-- Healthy meal ideas
+- Simple exercise or workout plan for the day
+- Healthy meal ideas with short recipes that fits their goals 
 - Motivation enhancement
 - Injury handling
 
 Group all similar answer together and please give the response in a JSON format.
-Object with a key "type" of "suggestions" and list of suggestions or list of steps will be separated into a key "title" and "description" within maximum 400 words in the following format:
+Object with a key "type" of "suggestions" and list of suggestions in the following format:
 {
   "type": "suggestions",
   "response": [{'title':'description'}, {'title':'description'}]
@@ -140,6 +134,8 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       _generatedMessages.add(MessageContent(
           attachment: attachment, text: message, fromUser: true));
+      
+      logger.d("User input: {'message': $message, 'attachment': ${attachmentFile != null? 'yes':'no'}");
       textController.clear();
       attachment = null;
     });
@@ -158,8 +154,7 @@ class _MyHomePageState extends State<MyHomePage> {
       var text = response.text;
       var obj = jsonDecode(text!) as Map<String, dynamic>;
       
-      logger.d("Gemini response: $obj");
-      
+      // logger.d("Gemini response: $obj");
 
       if (obj['type'] == 'suggestions') {
         var suggestionsList = obj['response'] as List<dynamic>;
@@ -188,7 +183,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
     final XFile? picked = await _picker.pickMedia();
-    if (picked == null) return;
+    if (picked == null) return logger.d("No file selected");
 
     final String? mimeType = picked.mimeType;
     final Uint8List bytes = await picked.readAsBytes();
@@ -197,6 +192,8 @@ class _MyHomePageState extends State<MyHomePage> {
     if (mimeType == null) return;
     setState(() {
       attachment = Attachment(mimeType: mimeType, bytes: bytes, path: path);
+      logger.i(
+          "Attachment selected: {'mimeType': $mimeType, 'bytes': ${bytes.length}, 'path': $path}");
     });
   }
 
@@ -365,7 +362,7 @@ class SuggestionBubble extends StatelessWidget {
       children: [
         Expanded(
             child: SizedBox(
-                height: 250,
+                height: 300,
                 child: PageView(
                   children: List.generate(
                     suggestions.length,
@@ -403,7 +400,8 @@ class SuggestionCard extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
             ),
             Text(description),
-            if(isEnd) const Icon(FontAwesomeIcons.circleArrowRight ),
+            const Spacer(),
+            if(!isEnd) const Icon(FontAwesomeIcons.circleArrowRight ),
           ],
         ),
       ),
