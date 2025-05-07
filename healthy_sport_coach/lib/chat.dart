@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:logger/web.dart';
+import 'package:mime/mime.dart';
 import 'package:video_player/video_player.dart';
 
 var logger = Logger();
@@ -140,36 +141,36 @@ class _MyHomePageState extends State<MyHomePage> {
       attachment = null;
     });
 
-    GenerateContentResponse response;
-    if (attachmentFile != null) {
-      response = await chat.sendMessage(Content.multi([
-        TextPart(message),
-        InlineDataPart(attachmentFile.mimeType, attachmentFile.bytes)
-      ]));
-    } else {
-      response = await chat.sendMessage(Content.text(message));
-    }
+    // GenerateContentResponse response;
+    // if (attachmentFile != null) {
+    //   response = await chat.sendMessage(Content.multi([
+    //     TextPart(message),
+    //     InlineDataPart(attachmentFile.mimeType, attachmentFile.bytes)
+    //   ]));
+    // } else {
+    //   response = await chat.sendMessage(Content.text(message));
+    // }
 
-    setState(() {
-      var text = response.text;
-      var obj = jsonDecode(text!) as Map<String, dynamic>;
+    // setState(() {
+    //   var text = response.text;
+    //   var obj = jsonDecode(text!) as Map<String, dynamic>;
       
-      // logger.d("Gemini response: $obj");
+    //   // logger.d("Gemini response: $obj");
 
-      if (obj['type'] == 'suggestions') {
-        var suggestionsList = obj['response'] as List<dynamic>;
-        _generatedMessages.add(SuggestionContent(
-          suggestionsList: suggestionsList,
-          fromUser: false,
-        ));
-      } else {
-        var answers = obj['response'] as String;
-        _generatedMessages.add(MessageContent(
-          text: answers,
-          fromUser: false,
-        ));
-      }
-    });
+    //   if (obj['type'] == 'suggestions') {
+    //     var suggestionsList = obj['response'] as List<dynamic>;
+    //     _generatedMessages.add(SuggestionContent(
+    //       suggestionsList: suggestionsList,
+    //       fromUser: false,
+    //     ));
+    //   } else {
+    //     var answers = obj['response'] as String;
+    //     _generatedMessages.add(MessageContent(
+    //       text: answers,
+    //       fromUser: false,
+    //     ));
+    //   }
+    // });
   }
 
   void getMedia() async {
@@ -178,23 +179,29 @@ class _MyHomePageState extends State<MyHomePage> {
           context: context,
           builder: (context) {
             return const AlertDialog(
-                title: Text("You've already selected an attachment."));
+                title: Text("You've already selected an attachment.",style: TextStyle(fontSize: 16),),
+                );
           });
     }
 
-    final XFile? picked = await _picker.pickMedia();
-    if (picked == null) return logger.d("No file selected");
+    try {
+      final XFile? picked = await _picker.pickMedia();
+      logger.d("Picked file: $picked");
+      if (picked == null) return logger.d("No file selected");
 
-    final String? mimeType = picked.mimeType;
-    final Uint8List bytes = await picked.readAsBytes();
-    final String path = picked.path;
+      final String? mimeType = picked.mimeType;
+      final Uint8List bytes = await picked.readAsBytes();
+      final String path = picked.path;
 
-    if (mimeType == null) return;
-    setState(() {
-      attachment = Attachment(mimeType: mimeType, bytes: bytes, path: path);
-      logger.i(
-          "Attachment selected: {'mimeType': $mimeType, 'bytes': ${bytes.length}, 'path': $path}");
-    });
+      if (mimeType == null) return logger.d("No mime type found");
+      setState(() {
+        attachment = Attachment(mimeType: mimeType, bytes: bytes, path: path);
+        // logger.i(
+        //     "Attachment selected: {'mimeType': $mimeType, 'bytes': ${bytes.length}, 'path': $path}");
+      });
+    } catch (e) {
+      logger.e("Error picking media: $e");
+    }
   }
 
   @override
@@ -234,6 +241,8 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                 ),
               ),
+              if (attachment != null)
+              const SnackBar(content: Text("Media attached"), duration: Duration(milliseconds: 500),),
               Container(
                 color: Colors.teal.shade200,
                 padding: const EdgeInsets.fromLTRB(8, 8, 8, 20),
