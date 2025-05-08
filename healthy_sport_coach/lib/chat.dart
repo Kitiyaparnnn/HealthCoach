@@ -18,18 +18,26 @@ class UserInfo {
   int weight;
   String occupation;
   String fitnessGoals;
-  List<String>? injuries;
+  String? injuries;
 
-  UserInfo({required this.gender, required this.age, required this.height, required this.weight, required this.occupation, required this.fitnessGoals, this.injuries});
+  UserInfo(
+      {required this.gender,
+      required this.age,
+      required this.height,
+      required this.weight,
+      required this.occupation,
+      required this.fitnessGoals,
+      this.injuries});
 }
+
 var user = UserInfo(
-  gender: "women", 
-  age: 25,
-  height: 161, 
-  weight: 50, 
-  occupation: "student", 
-  fitnessGoals: "weight loss to 45 kg", 
-  injuries: ["wrist pain"]);
+    gender: "female",
+    age: 25,
+    height: 161,
+    weight: 50,
+    occupation: "student",
+    fitnessGoals: "weight loss",
+    injuries: "wrist pain");
 
 String systemPrompt = '''
 You are a friendly personal fitness coach helping a user who wants to get healthier but may not know much about exercise or nutrition.
@@ -135,42 +143,41 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       _generatedMessages.add(MessageContent(
           attachment: attachment, text: message, fromUser: true));
-      
-      logger.d("User input: {'message': $message, 'attachment': ${attachmentFile != null? 'yes':'no'}");
+      // logger.d("User input: {'message': $message, 'attachment': ${attachmentFile != null ? 'yes' : 'no'}");
       textController.clear();
       attachment = null;
     });
 
-    // GenerateContentResponse response;
-    // if (attachmentFile != null) {
-    //   response = await chat.sendMessage(Content.multi([
-    //     TextPart(message),
-    //     InlineDataPart(attachmentFile.mimeType, attachmentFile.bytes)
-    //   ]));
-    // } else {
-    //   response = await chat.sendMessage(Content.text(message));
-    // }
+    GenerateContentResponse response;
+    if (attachmentFile != null) {
+      response = await chat.sendMessage(Content.multi([
+        TextPart(message),
+        InlineDataPart(attachmentFile.mimeType, attachmentFile.bytes)
+      ]));
+    } else {
+      response = await chat.sendMessage(Content.text(message));
+    }
 
-    // setState(() {
-    //   var text = response.text;
-    //   var obj = jsonDecode(text!) as Map<String, dynamic>;
-      
-    //   // logger.d("Gemini response: $obj");
+    setState(() {
+      var text = response.text;
+      var obj = jsonDecode(text!) as Map<String, dynamic>;
 
-    //   if (obj['type'] == 'suggestions') {
-    //     var suggestionsList = obj['response'] as List<dynamic>;
-    //     _generatedMessages.add(SuggestionContent(
-    //       suggestionsList: suggestionsList,
-    //       fromUser: false,
-    //     ));
-    //   } else {
-    //     var answers = obj['response'] as String;
-    //     _generatedMessages.add(MessageContent(
-    //       text: answers,
-    //       fromUser: false,
-    //     ));
-    //   }
-    // });
+      // logger.d("Gemini response: $obj");
+
+      if (obj['type'] == 'suggestions') {
+        var suggestionsList = obj['response'] as List<dynamic>;
+        _generatedMessages.add(SuggestionContent(
+          suggestionsList: suggestionsList,
+          fromUser: false,
+        ));
+      } else {
+        var answers = obj['response'] as String;
+        _generatedMessages.add(MessageContent(
+          text: answers,
+          fromUser: false,
+        ));
+      }
+    });
   }
 
   void getMedia() async {
@@ -179,29 +186,286 @@ class _MyHomePageState extends State<MyHomePage> {
           context: context,
           builder: (context) {
             return const AlertDialog(
-                title: Text("You've already selected an attachment.",style: TextStyle(fontSize: 16),),
-                );
+              title: Text(
+                "You've already selected an attachment.",
+                style: TextStyle(fontSize: 16),
+              ),
+            );
           });
+    } else {
+      try {
+        final XFile? picked = await _picker.pickMedia();
+        // logger.d("Picked file: $picked");
+        if (picked == null) return logger.d("No file selected");
+
+        // final String? mimeType = picked.mimeType;
+        final String? mimeType = lookupMimeType(picked.path);
+        final Uint8List bytes = await picked.readAsBytes();
+        final String path = picked.path;
+
+        if (mimeType == null) return logger.d("No mime type found");
+        setState(() {
+          attachment = Attachment(mimeType: mimeType, bytes: bytes, path: path);
+          // logger.i("Attachment selected: {'mimeType': $mimeType, 'bytes': ${bytes.length}, 'path': $path}");
+        });
+      } catch (e) {
+        logger.e("Error picking media: $e");
+      }
     }
+  }
 
-    try {
-      final XFile? picked = await _picker.pickMedia();
-      logger.d("Picked file: $picked");
-      if (picked == null) return logger.d("No file selected");
+  void showAdjustedUserInfo() {
+    String? gender = user.gender;
+    String? goal = user.fitnessGoals;
+    int? age = user.age;
+    int? height = user.height;
+    int? weight = user.weight;
+    String occupation = user.occupation;
+    String injuries = user.injuries ?? "";
 
-      final String? mimeType = picked.mimeType;
-      final Uint8List bytes = await picked.readAsBytes();
-      final String path = picked.path;
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(builder: (context, setState) {
+          return Dialog(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      "User Info",
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: Colors.teal),
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        const Text("Gender: "),
+                        const SizedBox(width: 8),
+                        _genderButton("female", gender == "female", () {
+                          setState(() {
+                            gender = "female";
+                            user.gender = gender!;
+                          });
+                        }),
+                        const SizedBox(width: 8),
+                        _genderButton("male", gender == "male", () {
+                          setState(() {
+                            gender = "male";
+                            user.gender = gender!;
+                          });
+                        }),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        const Text("Age: "),
+                        const SizedBox(width: 8),
+                        _valueBox(
+                          initial: age?.toString() ?? '',
+                          onChanged: (val) {
+                            final parsed = int.tryParse(val);
+                            if (parsed != null) {
+                              setState(() {
+                                age = parsed;
+                                user.age = parsed;
+                              });
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        const Text("Weight: "),
+                        _valueBox(
+                          initial: weight?.toString() ?? '',
+                          suffix: "kg",
+                          onChanged: (val) {
+                            final parsed = int.tryParse(val);
+                            if (parsed != null) {
+                              setState(() {
+                                weight = parsed;
+                                user.weight = parsed;
+                              });
+                            }
+                          },
+                        ),
+                        const Spacer(),
+                        const Text("Height: "),
+                        _valueBox(
+                          initial: height?.toString() ?? '',
+                          suffix: "cm",
+                          onChanged: (val) {
+                            final parsed = int.tryParse(val);
+                            if (parsed != null) {
+                              setState(() {
+                                height = parsed;
+                                user.height = parsed;
+                              });
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    const Row(
+                      children: [Text("Occupation:")],
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: TextEditingController(text: occupation),
+                      decoration: _inputDecoration(),
+                      onChanged: (val) {
+                        setState(() {
+                          occupation = val;
+                          user.occupation = val;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    const Row(
+                      children: [Text("Fitness Goal:")],
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                _tagButton("weight loss", goal == "weight loss",
+                                    () {
+                                  setState(() {
+                                    goal = "weight loss";
+                                    user.fitnessGoals = "weight loss";
+                                  });
+                                }),
+                                const SizedBox(width: 8),
+                                _tagButton(
+                                    "stay healthy", goal == "stay healthy", () {
+                                  setState(() {
+                                    goal = "stay healthy";
+                                    user.fitnessGoals = "stay healthy";
+                                  });
+                                }),
+                                const SizedBox(width: 8),
+                                _tagButton("flexibility", goal == "flexibility",
+                                    () {
+                                  setState(() {
+                                    goal = "flexibility";
+                                    user.fitnessGoals = "flexibility";
+                                  });
+                                }),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    const Row(
+                      children: [Text("Injuries:")],
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: TextEditingController(text: injuries),
+                      decoration: _inputDecoration(hint: "None"),
+                      onChanged: (val) {
+                        setState(() {
+                          injuries = val;
+                          user.injuries = val;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    Align(
+                      alignment: Alignment.bottomRight,
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text(
+                          "Save",
+                          style: TextStyle(color: Colors.teal),
+                        ),
+                      ),
+                    )
+                  ],
+                ),
+              ),
+            ),
+          );
+        });
+      },
+    );
+  }
 
-      if (mimeType == null) return logger.d("No mime type found");
-      setState(() {
-        attachment = Attachment(mimeType: mimeType, bytes: bytes, path: path);
-        // logger.i(
-        //     "Attachment selected: {'mimeType': $mimeType, 'bytes': ${bytes.length}, 'path': $path}");
-      });
-    } catch (e) {
-      logger.e("Error picking media: $e");
-    }
+  Widget _genderButton(String label, bool selected, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? Colors.teal.shade200 : Colors.transparent,
+          border: Border.all(color: Colors.grey),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(label),
+      ),
+    );
+  }
+
+  Widget _tagButton(String label, bool selected, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? Colors.teal.shade200 : Colors.transparent,
+          border: Border.all(color: Colors.grey),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(label),
+      ),
+    );
+  }
+
+  Widget _valueBox(
+      {required String initial,
+      String? suffix,
+      required Function(String) onChanged}) {
+    return SizedBox(
+      width: 70,
+      height: 35,
+      child: TextField(
+        controller: TextEditingController(text: initial),
+        keyboardType: TextInputType.number,
+        onChanged: onChanged,
+        decoration: InputDecoration(
+          suffixText: suffix,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration({String? hint}) {
+    return InputDecoration(
+      hintText: hint,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+    );
   }
 
   @override
@@ -210,8 +474,14 @@ class _MyHomePageState extends State<MyHomePage> {
         appBar: AppBar(
           backgroundColor: Theme.of(context).colorScheme.inversePrimary,
           title: Text(widget.title,
-              style: const TextStyle(
-                  fontSize: 20, fontWeight: FontWeight.w600)),
+              style:
+                  const TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+          leading: IconButton(
+              icon: const Icon(
+                FontAwesomeIcons.sliders,
+                size: 20,
+              ),
+              onPressed: showAdjustedUserInfo),
         ),
         body: Center(
           child: Column(
@@ -241,8 +511,24 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                 ),
               ),
-              if (attachment != null)
-              const SnackBar(content: Text("Media attached"), duration: Duration(milliseconds: 500),),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: attachment != null
+                    ? Container(
+                        width: MediaQuery.of(context).size.width,
+                        padding: const EdgeInsets.all(8),
+                        key: const ValueKey("popup"),
+                        decoration: BoxDecoration(
+                          color: Colors.teal.shade200,
+                        ),
+                        child: const Text(
+                          "Media attached!",
+                          style: TextStyle(color: Colors.white),
+                          textAlign: TextAlign.center,
+                        ),
+                      )
+                    : const SizedBox.shrink(key: ValueKey("empty")),
+              ),
               Container(
                 color: Colors.teal.shade200,
                 padding: const EdgeInsets.fromLTRB(8, 8, 8, 20),
@@ -314,7 +600,9 @@ class MessageBubble extends StatelessWidget {
           padding: const EdgeInsets.all(10),
           margin: const EdgeInsets.symmetric(vertical: 5),
           decoration: BoxDecoration(
-            color: isSender ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.surfaceContainer,
+            color: isSender
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.surfaceContainer,
             borderRadius: BorderRadius.circular(10),
           ),
           child: Column(
@@ -370,8 +658,10 @@ class SuggestionBubble extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-            child: SizedBox(
-                height: 300,
+            child: Container(
+                constraints: const BoxConstraints(
+                  maxHeight: 300,
+                ),
                 child: PageView(
                   children: List.generate(
                     suggestions.length,
@@ -389,7 +679,10 @@ class SuggestionBubble extends StatelessWidget {
 
 class SuggestionCard extends StatelessWidget {
   const SuggestionCard(
-      {super.key, required this.title, required this.description, required this.isEnd});
+      {super.key,
+      required this.title,
+      required this.description,
+      required this.isEnd});
 
   final String title;
   final String description;
@@ -410,7 +703,7 @@ class SuggestionCard extends StatelessWidget {
             ),
             Text(description),
             const Spacer(),
-            if(!isEnd) const Icon(FontAwesomeIcons.circleArrowRight ),
+            if (!isEnd) const Icon(FontAwesomeIcons.circleArrowRight),
           ],
         ),
       ),
