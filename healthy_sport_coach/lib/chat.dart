@@ -660,7 +660,7 @@ class SuggestionBubble extends StatelessWidget {
         Expanded(
             child: Container(
                 constraints: const BoxConstraints(
-                  maxHeight: 300,
+                  maxHeight: 325,
                 ),
                 child: PageView(
                   children: List.generate(
